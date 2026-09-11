@@ -2,7 +2,14 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    ConfusionMatrixDisplay,
+)
+import matplotlib.pyplot as plt
 
 
 def train_model():
@@ -24,17 +31,43 @@ def train_model():
         stratify=y,
     )
 
-    model = LogisticRegression(max_iter=1000)
-    model.fit(X_train, y_train)
+    # Logistic Regression
+    log_model = LogisticRegression(max_iter=1000)
+    log_model.fit(X_train, y_train)
 
-    predictions = model.predict(X_test)
-    accuracy = accuracy_score(y_test, predictions)
+    log_pred = log_model.predict(X_test)
+    log_acc = accuracy_score(y_test, log_pred)
+    print(f"Logistic Regression accuracy: {log_acc:.2f}\n")
+    print("Logistic Regression classification report:")
+    print(classification_report(y_test, log_pred))
 
-    print(f"Model accuracy: {accuracy:.2f}\n")
-    return model, result_encoder, X.columns
+    cm = confusion_matrix(y_test, log_pred)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=result_encoder.classes_)
+    disp.plot()
+    plt.title("Logistic Regression Confusion Matrix")
+    plt.show()
+
+    # Decision Tree
+    dt_model = DecisionTreeClassifier(random_state=42)
+    dt_model.fit(X_train, y_train)
+
+    dt_pred = dt_model.predict(X_test)
+    dt_acc = accuracy_score(y_test, dt_pred)
+    print(f"Decision Tree accuracy: {dt_acc:.2f}\n")
+    print("Decision Tree classification report:")
+    print(classification_report(y_test, dt_pred))
+
+    cm2 = confusion_matrix(y_test, dt_pred)
+    disp2 = ConfusionMatrixDisplay(confusion_matrix=cm2, display_labels=result_encoder.classes_)
+    disp2.plot()
+    plt.title("Decision Tree Confusion Matrix")
+    plt.show()
+
+    # Return both models; logistic regression remains the default for interactive prediction
+    return log_model, dt_model, result_encoder, X.columns
 
 
-def predict_student_result(model, result_encoder, feature_columns):
+def predict_student_result(log_model, dt_model, result_encoder, feature_columns):
     gender = input("Enter gender (Male/Female): ").strip().title()
     while gender not in ["Male", "Female"]:
         print("Invalid gender. Please enter Male or Female.")
@@ -56,12 +89,27 @@ def predict_student_result(model, result_encoder, feature_columns):
     }
 
     input_df = pd.DataFrame([feature_values], columns=feature_columns)
-    prediction = model.predict(input_df)[0]
-    label = result_encoder.inverse_transform([prediction])[0]
+    # Let user choose which model to use for prediction
+    print("\nChoose model for prediction:")
+    print("1) Logistic Regression")
+    print("2) Decision Tree")
+    print("3) Both")
+    choice = input("Select 1/2/3 (default 1): ").strip() or "1"
+    while choice not in ["1", "2", "3"]:
+        print("Invalid choice. Enter 1, 2, or 3.")
+        choice = input("Select 1/2/3 (default 1): ").strip() or "1"
 
-    print(f"\nPredicted result: {label}")
+    if choice in ["1", "3"]:
+        prediction = log_model.predict(input_df)[0]
+        label = result_encoder.inverse_transform([prediction])[0]
+        print(f"\nLogistic Regression predicted result: {label}")
+
+    if choice in ["2", "3"]:
+        prediction_dt = dt_model.predict(input_df)[0]
+        label_dt = result_encoder.inverse_transform([prediction_dt])[0]
+        print(f"Decision Tree predicted result: {label_dt}")
 
 
-model, result_encoder, feature_columns = train_model()
+log_model, dt_model, result_encoder, feature_columns = train_model()
 print("Enter student details to predict pass/fail:")
-predict_student_result(model, result_encoder, feature_columns)
+predict_student_result(log_model, dt_model, result_encoder, feature_columns)
